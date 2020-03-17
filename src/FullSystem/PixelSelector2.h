@@ -25,6 +25,7 @@
 #pragma once
  
 #include "util/NumType.h"
+#include "util/MinimalImage.h"
 
 namespace dso
 {
@@ -40,7 +41,9 @@ public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 	int makeMaps(
 			const FrameHessian* const fh,
-			float* map_out, float density, int recursionsLeft=1, bool plot=false, float thFactor=1);
+			float* map_out, float density, int recursionsLeft=1,
+			bool plot=false, float thFactor=1,
+			MinimalImageB* mask=nullptr);
 
 	PixelSelector(int w, int h);
 	~PixelSelector();
@@ -52,7 +55,8 @@ public:
 private:
 
 	Eigen::Vector3i select(const FrameHessian* const fh,
-			float* map_out, int pot, float thFactor=1);
+			       float* map_out, int pot, float thFactor=1,
+			       MinimalImageB* mask=nullptr);
 
 
 	unsigned char* randomPattern;

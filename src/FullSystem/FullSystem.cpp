@@ -199,6 +199,8 @@ FullSystem::~FullSystem()
 		delete s;
 	for(FrameHessian* fh : unmappedTrackedFrames)
 		delete fh;
+	for(MinimalImageB* mask : unmappedMasks)
+		delete mask;
 
 	delete coarseDistanceMap;
 	delete coarseTracker;
@@ -799,7 +801,7 @@ void FullSystem::flagPointsForRemoval()
 }
 
 
-void FullSystem::addActiveFrame( ImageAndExposure* image, int id )
+void FullSystem::addActiveFrame( ImageAndExposure* image, int id, MinimalImageB* mask)
 {
 
     if(isLost) return;
@@ -838,7 +840,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, int id )
 
 			initializeFromInitializer(fh);
 			lock.unlock();
-			deliverTrackedFrame(fh, true);
+			deliverTrackedFrame(fh, true, mask);
 		}
 		else
 		{
@@ -897,11 +899,11 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, int id )
 
 
 		lock.unlock();
-		deliverTrackedFrame(fh, needToMakeKF);
+		deliverTrackedFrame(fh, needToMakeKF, mask);
 		return;
 	}
 }
-void FullSystem::deliverTrackedFrame(FrameHessian* fh, bool needKF)
+void FullSystem::deliverTrackedFrame(FrameHessian* fh, bool needKF, MinimalImageB* mask)
 {
 
 
@@ -923,13 +925,14 @@ void FullSystem::deliverTrackedFrame(FrameHessian* fh, bool needKF)
 
 
 
-		if(needKF) makeKeyFrame(fh);
+		if(needKF) makeKeyFrame(fh, mask);
 		else makeNonKeyFrame(fh);
 	}
 	else
 	{
 		boost::unique_lock<boost::mutex> lock(trackMapSyncMutex);
 		unmappedTrackedFrames.push_back(fh);
+		unmappedMasks.push_back(mask);
 		if(needKF) needNewKFAfter=fh->shell->trackingRef->id;
 		trackedFrameSignal.notify_all();
 
@@ -956,13 +959,15 @@ void FullSystem::mappingLoop()
 
 		FrameHessian* fh = unmappedTrackedFrames.front();
 		unmappedTrackedFrames.pop_front();
+		MinimalImageB* mask = unmappedMasks.front();
+		unmappedMasks.pop_front();
 
 
 		// guaranteed to make a KF for the very first two tracked frames.
 		if(allKeyFramesHistory.size() <= 2)
 		{
 			lock.unlock();
-			makeKeyFrame(fh);
+			makeKeyFrame(fh, mask);
 			lock.lock();
 			mappedFrameSignal.notify_all();
 			continue;
@@ -982,6 +987,8 @@ void FullSystem::mappingLoop()
 			{
 				FrameHessian* fh = unmappedTrackedFrames.front();
 				unmappedTrackedFrames.pop_front();
+				MinimalImageB* mask = unmappedMasks.front();
+				unmappedMasks.pop_front();
 				{
 					boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 					assert(fh->shell->trackingRef != 0);
@@ -997,7 +1004,7 @@ void FullSystem::mappingLoop()
 			if(setting_realTimeMaxKF || needNewKFAfter >= frameHessians.back()->shell->id)
 			{
 				lock.unlock();
-				makeKeyFrame(fh);
+				makeKeyFrame(fh, mask);
 				needToKetchupMapping=false;
 				lock.lock();
 			}
@@ -1038,7 +1045,7 @@ void FullSystem::makeNonKeyFrame( FrameHessian* fh)
 	delete fh;
 }
 
-void FullSystem::makeKeyFrame( FrameHessian* fh)
+void FullSystem::makeKeyFrame( FrameHessian* fh, MinimalImageB* mask)
 {
 	// needs to be set by mapping thread
 	{
@@ -1168,7 +1175,7 @@ void FullSystem::makeKeyFrame( FrameHessian* fh)
 
 
 	// =========================== add new Immature points & new residuals =========================
-	makeNewTraces(fh, 0);
+	makeNewTraces(fh, 0, mask);
 
 
 
@@ -1283,11 +1290,11 @@ void FullSystem::initializeFromInitializer(FrameHessian* newFrame)
 	printf("INITIALIZE FROM INITIALIZER (%d pts)!\n", (int)firstFrame->pointHessians.size());
 }
 
-void FullSystem::makeNewTraces(FrameHessian* newFrame, float* gtDepth)
+void FullSystem::makeNewTraces(FrameHessian* newFrame, float* gtDepth, MinimalImageB* mask)
 {
 	pixelSelector->allowFast = true;
 	//int numPointsTotal = makePixelStatus(newFrame->dI, selectionMap, wG[0], hG[0], setting_desiredDensity);
-	int numPointsTotal = pixelSelector->makeMaps(newFrame, selectionMap,setting_desiredImmatureDensity);
+	int numPointsTotal = pixelSelector->makeMaps(newFrame, selectionMap,setting_desiredImmatureDensity, 1, false, 1, mask);
 
 	newFrame->pointHessians.reserve(numPointsTotal*1.2f);
 	//fh->pointHessiansInactive.reserve(numPointsTotal*1.2f);

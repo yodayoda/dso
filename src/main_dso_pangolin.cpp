@@ -32,7 +32,7 @@
 
 #include "IOWrapper/Output3DWrapper.h"
 #include "IOWrapper/ImageDisplay.h"
-
+#include "IOWrapper/ImageRW.h"
 
 #include <boost/thread.hpp>
 #include "util/settings.h"
@@ -465,10 +465,24 @@ int main( int argc, char** argv )
 
 
             ImageAndExposure* img;
+	    MinimalImageB* mask;
             if(preload)
                 img = preloadedImages[ii];
-            else
-                img = reader->getImage(i);
+            else {
+	      img = reader->getImage(i);
+	      std::string filename = reader->getFiles()[i];
+	      std::string toReplace("cam");
+	      size_t pos = filename.find(toReplace);
+	      filename = filename.replace(pos, toReplace.length(), "masks");
+	      filename = filename.replace(filename.end()-4,filename.end(),"-fseg.png");
+	      std::cout << "Reading mask: " << filename << std::endl;
+	      mask = IOWrap::readImageBW_8U(filename);
+	      if(!mask) {
+		std::cerr << "Could not read mask: " << filename << std::endl;
+		exit(-1);
+	      }
+	      //mask = nullptr;
+	    }
 
 
 
@@ -489,7 +503,7 @@ int main( int argc, char** argv )
 
 
 
-            if(!skipFrame) fullSystem->addActiveFrame(img, i);
+            if(!skipFrame) fullSystem->addActiveFrame(img, i, mask);
 
 
 

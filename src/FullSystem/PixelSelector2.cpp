@@ -141,7 +141,9 @@ void PixelSelector::makeHists(const FrameHessian* const fh)
 }
 int PixelSelector::makeMaps(
 		const FrameHessian* const fh,
-		float* map_out, float density, int recursionsLeft, bool plot, float thFactor)
+		float* map_out, float density, int recursionsLeft,
+		bool plot, float thFactor,
+		MinimalImageB* mask)
 {
 	float numHave=0;
 	float numWant=density;
@@ -184,7 +186,7 @@ int PixelSelector::makeMaps(
 		if(fh != gradHistFrame) makeHists(fh);
 
 		// select!
-		Eigen::Vector3i n = this->select(fh, map_out,currentPotential, thFactor);
+		Eigen::Vector3i n = this->select(fh, map_out,currentPotential, thFactor, mask);
 
 		// sub-select!
 		numHave = n[0]+n[1]+n[2];
@@ -208,7 +210,7 @@ int PixelSelector::makeMaps(
 	//				currentPotential,
 	//				idealPotential);
 			currentPotential = idealPotential;
-			return makeMaps(fh,map_out, density, recursionsLeft-1, plot,thFactor);
+			return makeMaps(fh,map_out, density, recursionsLeft-1, plot,thFactor, mask);
 		}
 		else if(recursionsLeft>0 && quotia < 0.25)
 		{
@@ -223,7 +225,7 @@ int PixelSelector::makeMaps(
 	//				currentPotential,
 	//				idealPotential);
 			currentPotential = idealPotential;
-			return makeMaps(fh,map_out, density, recursionsLeft-1, plot,thFactor);
+			return makeMaps(fh,map_out, density, recursionsLeft-1, plot,thFactor, mask);
 
 		}
 	}
@@ -293,7 +295,8 @@ int PixelSelector::makeMaps(
 
 
 Eigen::Vector3i PixelSelector::select(const FrameHessian* const fh,
-		float* map_out, int pot, float thFactor)
+				      float* map_out, int pot, float thFactor,
+				      MinimalImageB* mask)
 {
 
 	Eigen::Vector3f const * const map0 = fh->dI;
@@ -367,6 +370,7 @@ Eigen::Vector3i PixelSelector::select(const FrameHessian* const fh,
 					int yf = y1+y234;
 
 					if(xf<4 || xf>=w-5 || yf<4 || yf>h-4) continue;
+					if (mask and mask->at(xf,yf) != 0) continue;
 
 
 					float pixelTH0 = thsSmoothed[(xf>>5) + (yf>>5) * thsStep];

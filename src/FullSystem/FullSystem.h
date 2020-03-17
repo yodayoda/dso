@@ -28,6 +28,7 @@
 #include <deque>
 #include "util/NumType.h"
 #include "util/globalCalib.h"
+#include "util/MinimalImage.h"
 #include "vector"
  
 #include <iostream>
@@ -136,7 +137,7 @@ public:
 	virtual ~FullSystem();
 
 	// adds a new frame, and creates point & residual structs.
-	void addActiveFrame(ImageAndExposure* image, int id);
+  void addActiveFrame(ImageAndExposure* image, int id, MinimalImageB* mask);
 
 	// marginalizes a frame. drops / marginalizes points & residuals.
 	void marginalizeFrame(FrameHessian* frame);
@@ -182,7 +183,7 @@ private:
 	void activatePointsMT();
 	void activatePointsOldFirst();
 	void flagPointsForRemoval();
-	void makeNewTraces(FrameHessian* newFrame, float* gtDepth);
+        void makeNewTraces(FrameHessian* newFrame, float* gtDepth, MinimalImageB* mask);
 	void initializeFromInitializer(FrameHessian* newFrame);
 	void flagFramesForMarginalization(FrameHessian* newFH);
 
@@ -299,16 +300,17 @@ private:
  *
  */
 
-	void makeKeyFrame( FrameHessian* fh);
+  void makeKeyFrame( FrameHessian* fh, MinimalImageB* mask);
 	void makeNonKeyFrame( FrameHessian* fh);
-	void deliverTrackedFrame(FrameHessian* fh, bool needKF);
+  void deliverTrackedFrame(FrameHessian* fh, bool needKF, MinimalImageB* mask);
 	void mappingLoop();
 
 	// tracking / mapping synchronization. All protected by [trackMapSyncMutex].
 	boost::mutex trackMapSyncMutex;
 	boost::condition_variable trackedFrameSignal;
 	boost::condition_variable mappedFrameSignal;
-	std::deque<FrameHessian*> unmappedTrackedFrames;
+        std::deque<FrameHessian*> unmappedTrackedFrames;
+        std::deque<MinimalImageB*> unmappedMasks;
 	int needNewKFAfter;	// Otherwise, a new KF is *needed that has ID bigger than [needNewKFAfter]*.
 	boost::thread mappingThread;
 	bool runMapping;
