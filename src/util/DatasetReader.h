@@ -43,8 +43,6 @@
 
 using namespace dso;
 
-
-
 inline int getdir (std::string dir, std::vector<std::string> &files)
 {
     DIR *dp;
@@ -203,6 +201,11 @@ public:
 	{
 		return files.size();
 	}
+  
+  std::vector<std::string>& getFiles() {
+    return files;
+  }
+
 
 	double getTimestamp(int id)
 	{
