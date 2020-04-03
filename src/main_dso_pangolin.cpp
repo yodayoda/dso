@@ -474,7 +474,7 @@ int main( int argc, char** argv )
 	      std::string toReplace("cam");
 	      size_t pos = filename.find(toReplace);
 	      filename = filename.replace(pos, toReplace.length(), "masks");
-	      filename = filename.replace(filename.end()-4,filename.end(),"-fseg.png");
+	      //filename = filename.replace(filename.end()-4,filename.end(),"-fseg.png");
 	      std::cout << "Reading mask: " << filename << std::endl;
 	      mask = IOWrap::readImageBW_8U(filename);
 	      if(!mask) {

@@ -50,21 +50,31 @@ class SampleOutputWrapper : public Output3DWrapper
 public:
       inline SampleOutputWrapper() : numPCL(0),
 				     isSavePCL(true),
-				     plyFileName("/tmp/dso.ply")
+	plyFileName("/tmp/dso.ply"),
+	odometryFileName("/tmp/odometry.txt")
         {
-	pclFile.open(plyFileName);
-	pclFile << "ply\nformat ascii 1.0\nelement vertex 000000000\nproperty float x\nproperty float y\nproperty float z\nend_header\n";
+	plyFile.open(plyFileName);
+	plyFile << "ply\nformat ascii 1.0\nelement vertex 000000000\nproperty float x\nproperty float y\nproperty float z\nend_header\n";
+	odometryFile.open(odometryFileName);
+	odometryFile << "x y z\n";
             printf("OUT: Created SampleOutputWrapper\n");
         }
 
         virtual ~SampleOutputWrapper()
         {
-	if (pclFile.is_open())
+	if (plyFile.is_open())
 	  {
-	    pclFile.seekp(0, std::ios::beg);
-	    pclFile << "ply\nformat ascii 1.0\nelement vertex " << std::setfill('0') << std::setw(9) << numPCL << std::endl;
-	    pclFile.flush();
-	    pclFile.close();
+	    plyFile.seekp(0, std::ios::beg);
+	    plyFile << "ply\nformat ascii 1.0\nelement vertex " << std::setfill('0') << std::setw(9) << numPCL << std::endl;
+	    plyFile.flush();
+	    plyFile.close();
+
+	    std::cout << "Written flushed file to disk" << std::endl;
+	  }
+	if (odometryFile.is_open())
+	  {
+	    odometryFile.flush();
+	    odometryFile.close();
 
 	    std::cout << "Written flushed file to disk" << std::endl;
 	  }
@@ -126,17 +136,17 @@ public:
 			Eigen::Vector4d camPoint(x, y, z, 1.f);
 			Eigen::Vector3d worldPoint = m * camPoint;
 
-			if (isSavePCL && pclFile.is_open())
+			if (isSavePCL && plyFile.is_open())
 			  {
-			    pclFile << worldPoint[0] << " " << worldPoint[1] << " " << worldPoint[2] << "\n";
+			    plyFile << worldPoint[0] << " " << worldPoint[1] << " " << worldPoint[2] << "\n";
 			    numPCL++;
 			  }
 		      }
 		  }
 	      }
-	    if(isSavePCL && pclFile.is_open()) {
+	    if(isSavePCL && plyFile.is_open()) {
 	      std::cout << "\n\n\nWritten " << numPCL << " points to file " << plyFileName << std::endl;
-	      pclFile.flush();
+	      plyFile.flush();
 
                 }
             }
@@ -148,7 +158,9 @@ public:
                    frame->incoming_id,
                    frame->timestamp,
                    frame->id);
-            std::cout << frame->camToWorld.matrix3x4() << "\n";
+	auto mat = frame->camToWorld.matrix3x4();
+	std::cout << mat << "\n";
+	odometryFile << mat(0,3) << " " << mat(1,3) << " " << mat(2,3) << std::endl;
         }
 
 
@@ -192,8 +204,10 @@ public:
 
     private:
       int numPCL;
-      std::ofstream pclFile;
+      std::ofstream plyFile;
       const std::string plyFileName;
+      std::ofstream odometryFile;
+      const std::string odometryFileName;
       const bool isSavePCL;
 };
 }
